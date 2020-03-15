@@ -1,6 +1,3 @@
-# Trinket IO demo
-# Welcome to CircuitPython 3.1.1 :)
-
 import board
 from digitalio import DigitalInOut, Direction, Pull
 import adafruit_dotstar as dotstar
@@ -8,9 +5,11 @@ import adafruit_fancyled.adafruit_fancyled as fancy
 import time
 import neopixel
 import random
+import microcontroller
 
 # One pixel connected internally!
 dot = dotstar.DotStar(board.APA102_SCK, board.APA102_MOSI, 1, brightness=0.2)
+dot[0] = 0
 
 # Built in red LED
 led = DigitalInOut(board.D13)
@@ -63,6 +62,7 @@ def singleCursor():
     pos = 20
     for i in range(80):
         grid[pos] = red * (i % 2)
+        led.value = not (i % 2)
         grid.show()
         time.sleep(0.08)
     
@@ -96,6 +96,9 @@ def loop():
     singleCursor()
     sparkle()
     glitchPulse()
+    # For some reason, this program freezes occasionally.
+    # I don't want to debug CircuitPython.
+    microcontroller.reset()
 
 while True:
     loop()
