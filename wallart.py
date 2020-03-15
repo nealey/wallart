@@ -36,7 +36,6 @@ class GlitchPixel:
         bmask = (0xff * self.step // 32) & 0xff
         if self.step > self.nsteps/2:
             bmask = 0xff - bmask
-        #bmask = 0xff >> abs(4 - self.step)
         mask = (bmask << 16) | (bmask << 8) | (bmask << 0)
         color = self.color & mask
         grid[self.pos] = color
@@ -47,16 +46,14 @@ class GlitchPixel:
 
 def fade():
     reps = 300 + random.randrange(GRIDLEN)
-    hue = random.randrange(1000)
+    hue = random.randrange(256)
     colors = [fancy.CHSV(hue, 255, v).pack() for v in range(0, 256, 32)]
     rcolors = colors[:]
     rcolors.reverse()
+    colors = colors + rcolors
     for count in range(reps):
         pos = count % GRIDLEN
         for color in colors:
-            grid[pos] = color
-            pos -= 1
-        for color in rcolors:
             grid[pos] = color
             pos -= 1
         grid.show()
@@ -88,7 +85,7 @@ def glitchPulse():
         p = GlitchPixel()
         pixels.append(p)
 
-    for f in range(256):
+    for f in range(1000):
         for p in pixels:
             p.frame()
         grid.show()
