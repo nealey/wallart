@@ -8,7 +8,7 @@ pixels crammed into a cardboard box.
 This port is running on a 1x1 stick of wood,
 with tissue paper around it.
 
-It doesn't do anything.
+It doesn't display anything significant.
 It just looks interesting.
 
 Most people, when they see it,
