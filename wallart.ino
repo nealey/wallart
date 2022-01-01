@@ -12,7 +12,6 @@ void fade() {
   int reps = 300 + random(GRIDLEN);
   int hue = random(256);
   for (int i = 0; i < reps; i++) {
-    FastLED.clear();
     for (int pos = 0; pos < 8; pos++) {
       grid[(i+pos) % GRIDLEN] = CHSV(hue, 255, pos * 32);
     }
