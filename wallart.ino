@@ -40,18 +40,17 @@ void singleCursor(int count = 80) {
 
 #define NUM_SPARKS 3
 void sparkle(int cycles=50) {
-  int pos[NUM_SPARKS] = {0};
-  for (int i = 0; i < cycles; i++) {
-    for (int j = 0; j < GRIDLEN/16; j++) {
-      pos[j] = random(GRIDLEN);
-      grid[pos[j]] = CRGB::Gray;
-    }
-    FastLED.show();
-    for (int j = 0; j < NUM_SPARKS; j++) {
-      grid[pos[j]] = CRGB::Black;
-    }
-    pause(40);
-  }
+	int pos[NUM_SPARKS] = {0};
+
+	for (int i = 0; i < cycles; i++) {
+		for (int j = 0; j < NUM_SPARKS; j++) {
+			grid[pos[j]] = CRGB::Black;
+			pos[j] = random(GRIDLEN);
+			grid[pos[j]] = CRGB::Gray;
+		}
+		FastLED.show();
+		pause(40);
+	}
 }
 
 #define NUM_GLITCH 4
@@ -200,6 +199,16 @@ void netget(int count=30) {
 	}
 }
 
+const int dance_pos[4] = {27, 28, 36, 35};
+void dance(int count=32) {
+	for (int i = 0; i < count; i++) {
+		int pos = dance_pos[i % 4];
+		grid[pos] = CRGB::OliveDrab;
+		FastLED.show();
+		pause(125);
+		grid[pos] = CRGB::Black;
+	}
+}
 
 void loop() {
 	Picker p;
@@ -217,11 +226,9 @@ void loop() {
 		glitchPulse();
 	} else if (p.Pick(8)) {
 		cm5();
+	} else if (p.Pick(10)) {
+		dance();
 	} else if (p.Pick(4) || !connected()) {
 		netget();
 	}
-
-	// trying to debug why we get freezing
-	grid[0] = CHSV(HUE_YELLOW, 255, 255);
-	FastLED.show();
 }

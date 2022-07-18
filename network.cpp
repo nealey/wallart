@@ -25,7 +25,7 @@ bool connected() {
 void pause(uint32_t dwMs) {
 	for (uint32_t t = 0; t < dwMs; t += 10) {
 		wfm.process();
-		digitalWrite(LED_BUILTIN, connected());
+		digitalWrite(LED_BUILTIN, !connected());
 		delay(10);
 	}
 }
