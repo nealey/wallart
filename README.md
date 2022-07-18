@@ -1,12 +1,9 @@
 Wall Art
 ========
 
-This is a CircuitPython port of an art piece I have
-hanging in the wall of my office, with
+This an art piece I have
+hanging in the wall of my house, with
 pixels crammed into a cardboard box.
-
-This port is running on a 1x1 stick of wood,
-with tissue paper around it.
 
 It doesn't display anything significant.
 The idea is to have something to look at if you're idle,

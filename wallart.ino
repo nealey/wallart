@@ -1,14 +1,23 @@
 #include <FastLED.h>
 #include "picker.h"
+#include "network.h"
 
-#define NEOPIXEL_PIN 2
-#define GRIDLEN 50
+#define NEOPIXEL_PIN 32
+#define GRIDLEN 64
+#define WFM_PASSWORD "artsy fartsy"
+#define ART_URL "https://sweetums.woozle.org/public/wallart.bin"
 
 #define MILLISECOND 1
 #define SECOND (1000 * MILLISECOND)
 
 CRGB grid[GRIDLEN];
 
+void setup() {
+  FastLED.addLeds<WS2812, NEOPIXEL_PIN, GRB>(grid, GRIDLEN);
+  FastLED.setBrightness(32);
+  network_setup(WFM_PASSWORD);
+}
+ 
 void fade(int cycles = 2) {
   int reps = (cycles*GRIDLEN) + random(GRIDLEN);
   int hue = random(256);
@@ -17,15 +26,15 @@ void fade(int cycles = 2) {
       grid[(i+pos) % GRIDLEN] = CHSV(hue, 255, pos * 32);
     }
     FastLED.show();
-    delay(80);
+    pause(80);
   }
 }
 
 void singleCursor(int count = 80) {
-  for (int i = 0; i < 80; i++) {
+  for (int i = 0; i < count; i++) {
     grid[20] = CHSV(0, 210, 127 * (i%2));
     FastLED.show();
-    delay(120);
+    pause(120);
   }
 }
 
@@ -41,7 +50,7 @@ void sparkle(int cycles=50) {
     for (int j = 0; j < NUM_SPARKS; j++) {
       grid[pos[j]] = CRGB::Black;
     }
-    delay(40);
+    pause(40);
   }
 }
 
@@ -76,11 +85,11 @@ void glitchPulse(int cycles=1000) {
       steps[i]--;
     }
     FastLED.show();
-    delay(100);
+    pause(100);
   }
 }
 
-void conwayish(int cycles=1000) {
+void conwayish(int cycles=5000) {
   uint8_t total[GRIDLEN];
   uint8_t left[GRIDLEN] = {0};
   uint8_t hue = random(0, 64);
@@ -104,29 +113,115 @@ void conwayish(int cycles=1000) {
       }
     }
     FastLED.show();
-    delay(20);
+    pause(20);
   }
 }
 
-void setup() {
-  FastLED.addLeds<WS2812, NEOPIXEL_PIN, RGB>(grid, GRIDLEN);
-  FastLED.setBrightness(52);
-  pinMode(LED_BUILTIN, OUTPUT);
+void cm5(int cycles=200) {
+  for (int frame = 0; frame < cycles; frame++) {
+    int val = 127 * random(2);
+    for (int pos = 0; pos < GRIDLEN; pos++) {
+      if (pos < GRIDLEN-1) {
+        grid[pos] = grid[pos + 1];
+      } else {
+      grid[pos] = CHSV(0, 255, val);
+      }
+    }
+    FastLED.show();
+    pause(500);
+  }
 }
+
+// Art from the network
+bool NetArtExists = false;
+CRGB NetArt[GRIDLEN];
+
+void netart() {
+	if (NetArtExists) {
+		memcpy(grid, NetArt, GRIDLEN*3);
+		FastLED.show();
+		pause(10 * SECOND);
+	}
+}
+
+int netgetStatus(int hue) {
+	static int positions[4] = {0};
+	for (int j = 0; j < 4; j++) {
+		grid[positions[j]] = CHSV(0, 0, 0);
+		positions[j] = random(GRIDLEN);
+		grid[positions[j]] = CHSV(hue, 255, 180);
+	}
+	FastLED.show();
+	pause(500);
+	return hue;
+}
+
+void netget(int count=30) {
+	int hue = netgetStatus(HUE_BLUE);
+
+	if (connected()) {
+		WiFiClientSecure scli;
+
+		hue = netgetStatus(hue - 32);
+		scli.setInsecure();
+
+		{
+			HTTPClient https;
+
+			if (https.begin(scli, ART_URL)) {
+				hue = netgetStatus(hue - 32);
+				int code = https.GET();
+				if (code == HTTP_CODE_OK) {
+					hue = netgetStatus(hue - 32);
+					String resp = https.getString();
+					for (int i = 0; i < resp.length(); i += 3) {
+						if (resp.length() < i+3) {
+							break;
+						}
+						CRGB pixel = CRGB(resp[i], resp[i+1], resp[i+2]);
+						NetArt[i/3] = rgb2hsv_approximate(pixel);
+					}
+					NetArtExists = true;
+					hue = hue - 32;
+				}
+				https.end();
+
+				FastLED.show();
+				for (int i = 0; i < 4*4; i++) {
+					pause(250);
+				}
+			}
+			scli.stop();
+		}
+	}
+
+	for (int i = 0; i < count; i++) {
+		netgetStatus(hue);
+	}
+}
+
 
 void loop() {
-  Picker p;
+	Picker p;
 
-  if (p.Pick(1)) {
-    fade();
-    singleCursor(20);
-  } else if (p.Pick(1)) {
-    sparkle();
-  } else if (p.Pick(4)) {
-    singleCursor();
-  } else if (p.Pick(8)) {
-    conwayish();
-  } else if (p.Pick(8)) {
-    glitchPulse();
-  }
+	if (p.Pick(1)) {
+		fade();
+		singleCursor(20);
+	} else if (p.Pick(1)) {
+		sparkle();
+	} else if (p.Pick(4)) {
+		singleCursor();
+	} else if (p.Pick(8)) {
+		conwayish();
+	} else if (p.Pick(8)) {
+		glitchPulse();
+	} else if (p.Pick(8)) {
+		cm5();
+	} else if (p.Pick(4) || !connected()) {
+		netget();
+	}
+
+	// trying to debug why we get freezing
+	grid[0] = CHSV(HUE_YELLOW, 255, 255);
+	FastLED.show();
 }
