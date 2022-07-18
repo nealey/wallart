@@ -199,10 +199,10 @@ void netget(int count=30) {
 	}
 }
 
-const int dance_pos[4] = {27, 28, 36, 35};
-void dance(int count=32) {
+const int spinner_pos[4] = {27, 28, 36, 35};
+void spinner(int count=32) {
 	for (int i = 0; i < count; i++) {
-		int pos = dance_pos[i % 4];
+		int pos = spinner_pos[i % 4];
 		grid[pos] = CRGB::OliveDrab;
 		FastLED.show();
 		pause(125);
@@ -227,7 +227,7 @@ void loop() {
 	} else if (p.Pick(8)) {
 		cm5();
 	} else if (p.Pick(10)) {
-		dance();
+		spinner();
 	} else if (p.Pick(4) || !connected()) {
 		netget();
 	}
