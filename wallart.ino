@@ -1,14 +1,21 @@
 #include <FastLED.h>
+#include <ArduinoHttpClient.h>
+#include <WiFiClientSecure.h>
 #include "picker.h"
 #include "network.h"
 
 #define NEOPIXEL_PIN 32
 #define GRIDLEN 64
 #define WFM_PASSWORD "artsy fartsy"
-#define ART_URL "https://sweetums.woozle.org/public/wallart.bin"
+
+#define ART_HOSTNAME "sweetums.woozle.org"
+#define ART_PORT 443
+#define ART_PATH "/public/wallart.bin"
 
 #define MILLISECOND 1
 #define SECOND (1000 * MILLISECOND)
+
+#define HTTPS_TIMEOUT (2 * SECOND)
 
 CRGB grid[GRIDLEN];
 
@@ -132,18 +139,22 @@ void cm5(int cycles=200) {
 }
 
 // Art from the network
-bool NetArtExists = false;
-CRGB NetArt[GRIDLEN];
+int NetArtFrames = 0;
+CRGB NetArt[8][GRIDLEN];
 
-void netart() {
-	if (NetArtExists) {
-		memcpy(grid, NetArt, GRIDLEN*3);
+void netart(int count=40) {
+	if (NetArtFrames < 1) {
+		return;
+	}
+
+	for (int i = 0; i < count; i++) {
+		memcpy(grid, NetArt[i%NetArtFrames], GRIDLEN*3);
 		FastLED.show();
-		pause(10 * SECOND);
+		pause(500);
 	}
 }
 
-int netgetStatus(int hue) {
+uint8_t netgetStatus(uint8_t hue) {
 	static int positions[4] = {0};
 	for (int j = 0; j < 4; j++) {
 		grid[positions[j]] = CHSV(0, 0, 0);
@@ -155,8 +166,8 @@ int netgetStatus(int hue) {
 	return hue;
 }
 
-void netget(int count=30) {
-	int hue = netgetStatus(HUE_BLUE);
+void netget(int count=60) {
+	uint8_t hue = netgetStatus(HUE_BLUE);
 
 	if (connected()) {
 		WiFiClientSecure scli;
@@ -164,34 +175,19 @@ void netget(int count=30) {
 		hue = netgetStatus(hue - 32);
 		scli.setInsecure();
 
-		{
-			HTTPClient https;
+		HttpClient https(scli, ART_HOSTNAME, ART_PORT);
+		do {
+			if (https.get(ART_PATH) != 0) break;
+			hue = netgetStatus(hue - 32);
 
-			if (https.begin(scli, ART_URL)) {
-				hue = netgetStatus(hue - 32);
-				int code = https.GET();
-				if (code == HTTP_CODE_OK) {
-					hue = netgetStatus(hue - 32);
-					String resp = https.getString();
-					for (int i = 0; i < resp.length(); i += 3) {
-						if (resp.length() < i+3) {
-							break;
-						}
-						CRGB pixel = CRGB(resp[i], resp[i+1], resp[i+2]);
-						NetArt[i/3] = rgb2hsv_approximate(pixel);
-					}
-					NetArtExists = true;
-					hue = hue - 32;
-				}
-				https.end();
+			if (https.skipResponseHeaders() != HTTP_SUCCESS) break;
+			hue = netgetStatus(hue - 32);
 
-				FastLED.show();
-				for (int i = 0; i < 4*4; i++) {
-					pause(250);
-				}
-			}
-			scli.stop();
-		}
+			int artlen = https.read((uint8_t *)NetArt, sizeof(NetArt));
+			hue = netgetStatus(hue - 32);
+			NetArtFrames = (artlen / 3) / GRIDLEN;
+		} while(false);
+		https.stop();
 	}
 
 	for (int i = 0; i < count; i++) {
@@ -226,8 +222,8 @@ void loop() {
 		glitchPulse();
 	} else if (p.Pick(8)) {
 		cm5();
-	} else if (p.Pick(10)) {
-		spinner();
+	} else if (p.Pick(8)) {
+		netart();
 	} else if (p.Pick(4) || !connected()) {
 		netget();
 	}
