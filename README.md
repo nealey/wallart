@@ -16,6 +16,34 @@ form different ideas about what it's displaying.
 That's cool.
 
 
+Network Server
+--------------
+
+If you provide a wallart server in 
+`network-server.h`,
+the program will periodically fetch an image/animation from it,
+and display that image/animation.
+
+Because the fetch takes some time,
+one of the animation patterns actually shows progress of the fetch.
+It's the one with the four lights of the same color.
+After it's either succeeded or failed,
+it stays on that color for a while,
+so you can tell how everything is going.
+Here's what the colors indicate:
+
+Color it stays on | Status
+--- | ---
+Blue | Unable to connect to access point
+Aqua | Some sort of problem initiating the HTTPS request (DNS?)
+Green | HTTPS server request failed (404 or similar)
+Yellow | Image download failed
+Orange | Everything worked!
+
+A happy setup will cycle through each color once,
+and then display orange for a while.
+
+
 Philosophy
 ----------
 

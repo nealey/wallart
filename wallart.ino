@@ -3,14 +3,11 @@
 #include <WiFiClientSecure.h>
 #include "picker.h"
 #include "network.h"
+#include "network-server.h"
 
 #define NEOPIXEL_PIN 32
 #define GRIDLEN 64
 #define WFM_PASSWORD "artsy fartsy"
-
-#define ART_HOSTNAME "sweetums.woozle.org"
-#define ART_PORT 443
-#define ART_PATH "/public/wallart.bin"
 
 #define MILLISECOND 1
 #define SECOND (1000 * MILLISECOND)
@@ -21,7 +18,9 @@ CRGB grid[GRIDLEN];
 
 void setup() {
   FastLED.addLeds<WS2812, NEOPIXEL_PIN, GRB>(grid, GRIDLEN);
-  FastLED.setBrightness(32);
+  FastLED.setBrightness(64);
+  // Maybe it's the plexiglass but for my build I really need to dial back the red
+  FastLED.setCorrection(0xc0ffff);
   network_setup(WFM_PASSWORD);
 }
  
@@ -30,7 +29,8 @@ void fade(int cycles = 2) {
   int hue = random(256);
   for (int i = 0; i < reps; i++) {
     for (int pos = 0; pos < 8; pos++) {
-      grid[(i+pos) % GRIDLEN] = CHSV(hue, 255, pos * 32);
+      uint8_t p = cm5xlat(8, (i+pos) % GRIDLEN);
+      grid[p] = CHSV(hue, 255, pos * 32);
     }
     FastLED.show();
     pause(80);
@@ -123,14 +123,28 @@ void conwayish(int cycles=5000) {
   }
 }
 
-void cm5(int cycles=200) {
+uint8_t cm5xlat(uint8_t width, uint8_t pos) {
+  if (width == 0) {
+    return pos;
+  }
+
+  uint8_t x = pos % width;
+  uint8_t y = pos / width;
+  uint8_t odd = y % 2;
+
+  return (y*width) + ((width-x-1)*odd) + (x*(1-odd));
+}
+
+void cm5(uint8_t width=0, int cycles=200) {
   for (int frame = 0; frame < cycles; frame++) {
     int val = 127 * random(2);
-    for (int pos = 0; pos < GRIDLEN; pos++) {
+    for (uint8_t pos = 0; pos < GRIDLEN; pos++) {
+      uint8_t xpos = cm5xlat(width, pos);
       if (pos < GRIDLEN-1) {
-        grid[pos] = grid[pos + 1];
+        uint8_t x2pos = cm5xlat(width, pos+1);
+        grid[xpos] = grid[x2pos];
       } else {
-      grid[pos] = CHSV(0, 255, val);
+        grid[xpos] = CHSV(0, 255, val);
       }
     }
     FastLED.show();
@@ -169,26 +183,28 @@ uint8_t netgetStatus(uint8_t hue) {
 void netget(int count=60) {
 	uint8_t hue = netgetStatus(HUE_BLUE);
 
+#if defined(ART_HOSTNAME) && defined(ART_PORT) && defined(ART_PATH)
 	if (connected()) {
 		WiFiClientSecure scli;
 
-		hue = netgetStatus(hue - 32);
+		hue = netgetStatus(HUE_AQUA);
 		scli.setInsecure();
 
 		HttpClient https(scli, ART_HOSTNAME, ART_PORT);
 		do {
 			if (https.get(ART_PATH) != 0) break;
-			hue = netgetStatus(hue - 32);
+			hue = netgetStatus(HUE_GREEN);
 
 			if (https.skipResponseHeaders() != HTTP_SUCCESS) break;
-			hue = netgetStatus(hue - 32);
+			hue = netgetStatus(HUE_YELLOW);
 
 			int artlen = https.read((uint8_t *)NetArt, sizeof(NetArt));
-			hue = netgetStatus(hue - 32);
+			hue = netgetStatus(HUE_ORANGE);
 			NetArtFrames = (artlen / 3) / GRIDLEN;
 		} while(false);
 		https.stop();
 	}
+#endif
 
 	for (int i = 0; i < count; i++) {
 		netgetStatus(hue);
@@ -208,8 +224,17 @@ void spinner(int count=32) {
 
 void loop() {
 	Picker p;
+  uint8_t getprob = 4;
 
-	if (p.Pick(1)) {
+  if ((NetArtFrames == 0) || !connected()) {
+    getprob = 16;
+  }
+ 
+ if (p.Pick(getprob)) {
+  netget();
+	} else if (p.Pick(4)) {
+		netart();
+ } else	if (p.Pick(1)) {
 		fade();
 		singleCursor(20);
 	} else if (p.Pick(1)) {
@@ -220,11 +245,11 @@ void loop() {
 		conwayish();
 	} else if (p.Pick(8)) {
 		glitchPulse();
-	} else if (p.Pick(8)) {
-		cm5();
-	} else if (p.Pick(8)) {
-		netart();
-	} else if (p.Pick(4) || !connected()) {
-		netget();
+	} else if (p.Pick(2)) {
+		cm5(0);
+  } else if (p.Pick(2)) {
+    cm5(8);
+  } else if (p.Pick(2)) { 
+    cm5(16);
 	}
 }

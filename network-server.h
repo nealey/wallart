@@ -5,6 +5,6 @@
  *
  * https://git.woozle.org/neale/wallart-server
  */
-//#define ART_HOSTNAME "wallart.your.site"
+#define ART_HOSTNAME "www.woozle.org"
 #define ART_PORT 443
 #define ART_PATH "/wallart/wallart.bin"
