@@ -7,6 +7,8 @@ https://git.woozle.org/neale/wallart/
 This an art piece I have
 hanging in the wall of my house, with
 pixels crammed into a cardboard box.
+Newer versions use an 8x8 grid,
+in a 3D-printed enclosure.
 
 It doesn't display anything significant.
 The idea is to have something to look at if you're idle,
@@ -22,10 +24,10 @@ That's cool.
 Network Server
 --------------
 
-If you provide a wallart server in 
-`network-server.h`,
+If you `#define` a wallart server,
 the program will periodically fetch an image/animation from it,
 and display that image/animation.
+I added this so we could send little pictures to my daughter in college.
 
 Because the fetch takes some time,
 one of the animation patterns actually shows progress of the fetch.
