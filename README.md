@@ -1,6 +1,9 @@
 Wall Art
 ========
 
+This project's primary home is
+https://git.woozle.org/neale/wallart/
+
 This an art piece I have
 hanging in the wall of my house, with
 pixels crammed into a cardboard box.
