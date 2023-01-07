@@ -1,24 +1,44 @@
 #include <FastLED.h>
 #include <ArduinoHttpClient.h>
 #include <WiFiClientSecure.h>
+#include <WiFiUdp.h>
+#include <NTPClient.h>
+#include "times.h"
 #include "picker.h"
 #include "network.h"
-#include "network-server.h"
 
 #define NEOPIXEL_PIN 32
 #define GRIDLEN 64
 #define WFM_PASSWORD "artsy fartsy"
+#define TIME_OFFSET   (-7 * HOUR / SECOND)
 
-#define MILLISECOND 1
-#define SECOND (1000 * MILLISECOND)
+/* 
+ * The hours when the day begins and ends.
+ * During the day, everything is brighter.
+ */
+#define DAY_BEGIN 7
+#define DAY_END 21
+#define DAY_BRIGHTNESS 0x80
+#define NIGHT_BRIGHTNESS 0x10
+
+/*
+ * Define these to fetch from a wallart-server
+ *
+ * https://git.woozle.org/neale/wallart-server
+ */
+#define ART_HOSTNAME "www.woozle.org"
+#define ART_PORT 443
+#define ART_PATH "/wallart/wallart.bin"
 
 #define HTTPS_TIMEOUT (2 * SECOND)
 
 CRGB grid[GRIDLEN];
 
+WiFiUDP ntpUDP;
+NTPClient timeClient(ntpUDP, TIME_OFFSET);
+
 void setup() {
   FastLED.addLeds<WS2812, NEOPIXEL_PIN, GRB>(grid, GRIDLEN);
-  FastLED.setBrightness(64);
   // Maybe it's the plexiglass but for my build I really need to dial back the red
   FastLED.setCorrection(0xc0ffff);
   network_setup(WFM_PASSWORD);
@@ -222,19 +242,72 @@ void spinner(int count=32) {
 	}
 }
 
+void displayTime(unsigned long duration = 20 * SECOND) {
+  if (!connected()) return;
+  unsigned long end = millis() + duration;
+  FastLED.clear();
+
+  while (millis() < end) {
+    timeClient.update();
+    int hh = timeClient.getHours();
+    int mm = timeClient.getMinutes();
+    int ss = timeClient.getSeconds();
+    uint8_t hue = HUE_YELLOW;
+
+    if (hh >= 12) {
+      hue = HUE_ORANGE;
+      hh -= 12;
+    }
+
+    for (int i = 0; i < 12; i++) {
+      // Omit first and last position on a row
+      int pos = i + 1;
+      if (pos > 6) {
+        pos += 2;
+      }
+
+      grid[pos + 0] = CHSV(hue, 255, (i<hh)?128:48);
+      grid[pos + 24] = CHSV(HUE_RED, 255, (i<mm/5)?128:48);
+      grid[pos + 48] = CHSV(HUE_PINK, 128, (i<ss/5)?96:48);
+    }
+    FastLED.show();
+
+    pause(250 * MILLISECOND);
+  }
+}
+
+void adjustBrightness() {
+  int hh = timeClient.getHours();
+  if ((hh >= DAY_BEGIN) && (hh < DAY_END)) {
+    FastLED.setBrightness(DAY_BRIGHTNESS);
+  } else {
+    FastLED.setBrightness(NIGHT_BRIGHTNESS);
+  }
+}
+
 void loop() {
 	Picker p;
   uint8_t getprob = 4;
+  bool conn = connected();
+  bool day = true;
 
-  if ((NetArtFrames == 0) || !connected()) {
+  timeClient.update();
+  if (timeClient.isTimeSet()) {
+    int hh = timeClient.getHours();
+    day = ((hh > DAY_BEGIN) && (hh < DAY_END));
+  }
+  FastLED.setBrightness(day?DAY_BRIGHTNESS:NIGHT_BRIGHTNESS);
+
+  if ((NetArtFrames == 0) || !conn) {
     getprob = 16;
   }
- 
- if (p.Pick(getprob)) {
-  netget();
-	} else if (p.Pick(4)) {
+  
+  if (p.Pick(getprob)) {
+    netget();
+  } else if (day && p.Pick(4)) {
+    // These can be hella bright
 		netart();
- } else	if (p.Pick(1)) {
+  } else if (p.Pick(1)) {
 		fade();
 		singleCursor(20);
 	} else if (p.Pick(1)) {
@@ -251,5 +324,7 @@ void loop() {
     cm5(8);
   } else if (p.Pick(2)) { 
     cm5(16);
-	}
+	} else if (p.Pick(4)) {
+    displayTime(1 * MINUTE);
+  }
 }
