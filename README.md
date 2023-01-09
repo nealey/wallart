@@ -49,6 +49,21 @@ A happy setup will cycle through each color once,
 and then display orange for a while.
 
 
+Clock
+-----
+
+At night, 
+and sometimes during the day,
+it displays something like a clock.
+You will need to tell it your time zone.
+It doesn't do daylight saving time, sorry.
+I suggest you set it to standard time and pretend it's in sync with the sun.
+
+* Each pixel in the top row is 1 hour (3600 seconds)
+* Each pixel in the middle row is 5 minutes (300 seconds)
+* Each pixel in the bottom row is 25 seconds
+* There are four pixels around the bottom that move every 5 seconds
+
 Philosophy
 ----------
 

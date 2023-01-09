@@ -250,14 +250,27 @@ void displayTime(unsigned long duration = 20 * SECOND) {
   while (millis() < end) {
     timeClient.update();
     int hh = timeClient.getHours();
-    int mm = timeClient.getMinutes();
-    int ss = timeClient.getSeconds();
+    int mmss = timeClient.getMinutes()*60 + timeClient.getSeconds();
     uint8_t hue = HUE_YELLOW;
 
+    // Top: Hours
     if (hh >= 12) {
       hue = HUE_ORANGE;
       hh -= 12;
     }
+
+    // Middle: 5m (300s)
+    uint8_t mm = (mmss/300) % 12;
+
+    // Bottom: 25s
+    uint8_t ss = (mmss/25) % 12;
+
+    // Outer: 5s
+    uint8_t s = (mmss/5) % 5;
+    grid[64 -  7 - 1] = CHSV(HUE_PURPLE, 64, (s==1)?64:0);
+    grid[64 - 15 - 1] = CHSV(HUE_PURPLE, 64, (s==2)?64:0);
+    grid[64 -  8 - 1] = CHSV(HUE_PURPLE, 64, (s==3)?64:0);
+    grid[64 -  0 - 1] = CHSV(HUE_PURPLE, 64, (s==4)?64:0);
 
     for (int i = 0; i < 12; i++) {
       // Omit first and last position on a row
@@ -267,8 +280,8 @@ void displayTime(unsigned long duration = 20 * SECOND) {
       }
 
       grid[pos + 0] = CHSV(hue, 255, (i<hh)?128:48);
-      grid[pos + 24] = CHSV(HUE_RED, 255, (i<mm/5)?128:48);
-      grid[pos + 48] = CHSV(HUE_PINK, 128, (i<ss/5)?96:48);
+      grid[pos + 24] = CHSV(HUE_RED, 255, (i<mm)?128:48);
+      grid[pos + 48] = CHSV(HUE_PINK, 128, (i<ss)?96:48);
     }
     FastLED.show();
 
@@ -298,11 +311,15 @@ void loop() {
   }
   FastLED.setBrightness(day?DAY_BRIGHTNESS:NIGHT_BRIGHTNESS);
 
+  // If we don't yet have net art, try a little harder to get it.
   if ((NetArtFrames == 0) || !conn) {
     getprob = 16;
   }
-  
-  if (p.Pick(getprob)) {
+
+  if (!day || p.Pick(4)) {
+    // At night, only ever show the clock
+    displayTime(2 * MINUTE);
+  } else if (p.Pick(getprob)) {
     netget();
   } else if (day && p.Pick(4)) {
     // These can be hella bright
@@ -324,7 +341,5 @@ void loop() {
     cm5(8);
   } else if (p.Pick(2)) { 
     cm5(16);
-	} else if (p.Pick(4)) {
-    displayTime(1 * MINUTE);
-  }
+	}
 }
