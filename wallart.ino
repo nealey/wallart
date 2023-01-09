@@ -267,10 +267,10 @@ void displayTime(unsigned long duration = 20 * SECOND) {
 
     // Outer: 5s
     uint8_t s = (mmss/5) % 5;
-    grid[64 -  7 - 1] = CHSV(HUE_PURPLE, 64, (s==1)?64:0);
-    grid[64 - 15 - 1] = CHSV(HUE_PURPLE, 64, (s==2)?64:0);
-    grid[64 -  8 - 1] = CHSV(HUE_PURPLE, 64, (s==3)?64:0);
-    grid[64 -  0 - 1] = CHSV(HUE_PURPLE, 64, (s==4)?64:0);
+    grid[64 -  7 - 1] = CHSV(HUE_PURPLE, 128, (s==1)?96:0);
+    grid[64 - 15 - 1] = CHSV(HUE_PURPLE, 128, (s==2)?96:0);
+    grid[64 -  8 - 1] = CHSV(HUE_PURPLE, 128, (s==3)?96:0);
+    grid[64 -  0 - 1] = CHSV(HUE_PURPLE, 128, (s==4)?96:0);
 
     for (int i = 0; i < 12; i++) {
       // Omit first and last position on a row
@@ -289,15 +289,6 @@ void displayTime(unsigned long duration = 20 * SECOND) {
   }
 }
 
-void adjustBrightness() {
-  int hh = timeClient.getHours();
-  if ((hh >= DAY_BEGIN) && (hh < DAY_END)) {
-    FastLED.setBrightness(DAY_BRIGHTNESS);
-  } else {
-    FastLED.setBrightness(NIGHT_BRIGHTNESS);
-  }
-}
-
 void loop() {
 	Picker p;
   uint8_t getprob = 4;
@@ -307,7 +298,7 @@ void loop() {
   timeClient.update();
   if (timeClient.isTimeSet()) {
     int hh = timeClient.getHours();
-    day = ((hh > DAY_BEGIN) && (hh < DAY_END));
+    day = ((hh >= DAY_BEGIN) && (hh < DAY_END));
   }
   FastLED.setBrightness(day?DAY_BRIGHTNESS:NIGHT_BRIGHTNESS);
 

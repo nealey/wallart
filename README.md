@@ -64,6 +64,7 @@ I suggest you set it to standard time and pretend it's in sync with the sun.
 * Each pixel in the bottom row is 25 seconds
 * There are four pixels around the bottom that move every 5 seconds
 
+
 Philosophy
 ----------
 
@@ -83,4 +84,3 @@ but if you want to make NeoPixel art,
 think hard about what the end result should look like.
 It's not enough to make a cool light show;
 it has to make people wonder "what is that for?"
-
