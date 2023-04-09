@@ -3,21 +3,23 @@
 #include <WiFiClientSecure.h>
 #include <WiFiUdp.h>
 #include <NTPClient.h>
-#include "times.h"
+#include <Time.h>
+#include "durations.h"
+#include "timezones.h"
 #include "picker.h"
 #include "network.h"
 
 #define NEOPIXEL_PIN 32
 #define GRIDLEN 64
 #define WFM_PASSWORD "artsy fartsy"
-#define TIME_OFFSET   (-7 * HOUR / SECOND)
+#define TIMEZONE TZ_US_Mountain
 
 /* 
  * The hours when the day begins and ends.
- * During the day, everything is brighter.
+ * At night, all you get is a dim clock.
  */
-#define DAY_BEGIN 7
-#define DAY_END 21
+#define DAY_BEGIN 6
+#define DAY_END 20
 #define DAY_BRIGHTNESS 0x80
 #define NIGHT_BRIGHTNESS 0x10
 
@@ -35,7 +37,7 @@
 CRGB grid[GRIDLEN];
 
 WiFiUDP ntpUDP;
-NTPClient timeClient(ntpUDP, TIME_OFFSET);
+NTPClient timeClient(ntpUDP);
 
 void setup() {
   FastLED.addLeds<WS2812, NEOPIXEL_PIN, GRB>(grid, GRIDLEN);
@@ -43,7 +45,17 @@ void setup() {
   FastLED.setCorrection(0xc0ffff);
   network_setup(WFM_PASSWORD);
 }
- 
+
+bool updateTime() {
+  if (timeClient.update()) {
+    time_t now = timeClient.getEpochTime();
+    time_t local = TIMEZONE.toLocal(now);
+    setTime(local);
+    return true;
+  }
+  return false;
+}
+
 void fade(int cycles = 2) {
   int reps = (cycles*GRIDLEN) + random(GRIDLEN);
   int hue = random(256);
@@ -243,18 +255,18 @@ void spinner(int count=32) {
 }
 
 void displayTime(unsigned long duration = 20 * SECOND) {
-  if (!connected()) return;
+  if (timeStatus() != timeSet) return;
   unsigned long end = millis() + duration;
   FastLED.clear();
 
   while (millis() < end) {
-    timeClient.update();
-    int hh = timeClient.getHours();
-    int mmss = timeClient.getMinutes()*60 + timeClient.getSeconds();
+    updateTime();
+    int hh = hour();
+    int mmss = now() % 3600;
     uint8_t hue = HUE_YELLOW;
 
     // Top: Hours
-    if (hh >= 12) {
+    if (isPM()) {
       hue = HUE_ORANGE;
       hh -= 12;
     }
@@ -295,9 +307,8 @@ void loop() {
   bool conn = connected();
   bool day = true;
 
-  timeClient.update();
-  if (timeClient.isTimeSet()) {
-    int hh = timeClient.getHours();
+  if (updateTime()) {
+    int hh = hour();
     day = ((hh >= DAY_BEGIN) && (hh < DAY_END));
   }
   FastLED.setBrightness(day?DAY_BRIGHTNESS:NIGHT_BRIGHTNESS);
