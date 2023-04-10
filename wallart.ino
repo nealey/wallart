@@ -307,7 +307,8 @@ void loop() {
   bool conn = connected();
   bool day = true;
 
-  if (updateTime()) {
+  updateTime();
+  if (timeStatus() == timeSet) {
     int hh = hour();
     day = ((hh >= DAY_BEGIN) && (hh < DAY_END));
   }
