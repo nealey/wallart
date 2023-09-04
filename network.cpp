@@ -7,6 +7,10 @@
 
 WiFiManager wfm;
 
+void network_reset() {
+  wfm.resetSettings();
+}
+
 void network_setup(char *password) {
 	String hostid = String(ESP.getEfuseMac(), HEX);
 	String hostname = "Wall Art " + hostid;
@@ -14,8 +18,6 @@ void network_setup(char *password) {
 	wfm.setConfigPortalBlocking(false);
 	wfm.setHostname(hostname);
 	wfm.autoConnect(hostname.c_str(), password);
-
-	pinMode(LED_BUILTIN, OUTPUT);
 }
 
 bool connected() {

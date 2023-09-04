@@ -1,9 +1,9 @@
-#include <FastLED.h>
+  #include <FastLED.h>
 #include <ArduinoHttpClient.h>
 #include <WiFiClientSecure.h>
 #include <WiFiUdp.h>
 #include <NTPClient.h>
-#include <Time.h>
+#include <TimeLib.h>
 #include "durations.h"
 #include "timezones.h"
 #include "picker.h"
@@ -34,15 +34,34 @@
 
 #define HTTPS_TIMEOUT (2 * SECOND)
 
+#define RESET_PIN 26
+
 CRGB grid[GRIDLEN];
 
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP);
 
+void do_reset() {
+  for (int i = 0; i < 8; i++) {
+    for (int j = 0; j < 8; j += 1) {
+      grid[j] = ((i+j)%2) ? (CRGB::Orange) : (CRGB::Blue);
+    }
+    FastLED.show();
+    digitalWrite(LED_BUILTIN, i%2);
+    delay(300 * MILLISECOND);
+  }
+  network_reset();
+}
+
 void setup() {
+  pinMode(RESET_PIN, INPUT_PULLUP);
+ 	pinMode(LED_BUILTIN, OUTPUT);
   FastLED.addLeds<WS2812, NEOPIXEL_PIN, GRB>(grid, GRIDLEN);
-  // Maybe it's the plexiglass but for my build I really need to dial back the red
-  FastLED.setCorrection(0xc0ffff);
+  // Maybe it's the plexiglass, but for my build, I need to dial back the red
+  FastLED.setCorrection(0xd0ffff);
+  if (!digitalRead(RESET_PIN)) {
+    do_reset();
+  }
   network_setup(WFM_PASSWORD);
 }
 
@@ -230,9 +249,21 @@ void netget(int count=60) {
 			if (https.skipResponseHeaders() != HTTP_SUCCESS) break;
 			hue = netgetStatus(HUE_YELLOW);
 
-			int artlen = https.read((uint8_t *)NetArt, sizeof(NetArt));
-			hue = netgetStatus(HUE_ORANGE);
-			NetArtFrames = (artlen / 3) / GRIDLEN;
+      size_t readBytes = 0;
+      for (int i = 0; i < 12; i++) {
+        size_t artBytesLeft = sizeof(NetArt) - readBytes;
+
+        if (https.endOfBodyReached() || (artBytesLeft == 0)) {
+          hue = netgetStatus(HUE_ORANGE);
+    			NetArtFrames = (readBytes / 3) / GRIDLEN;
+          break;
+        }
+        int l = https.read((uint8_t *)NetArt + readBytes, artBytesLeft);
+        if (-1 == l) {
+          break;
+        }
+        readBytes += l;
+      }
 		} while(false);
 		https.stop();
 	}
@@ -307,7 +338,12 @@ void loop() {
   bool conn = connected();
   bool day = true;
 
-  updateTime();
+  switch (timeStatus()) {
+    case timeNotSet:
+    case timeNeedsSync:
+      updateTime();
+      break;
+  }
   if (timeStatus() == timeSet) {
     int hh = hour();
     day = ((hh >= DAY_BEGIN) && (hh < DAY_END));

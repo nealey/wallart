@@ -20,6 +20,31 @@ Most people, after watching it for a bit,
 form different ideas about what it's displaying.
 That's cool.
 
+Reset
+------
+
+Plug the device in,
+connect GND to pin A0,
+and briefly press the reboot button.
+It will flash orange and blue a few times
+to let you know it has reset.
+
+
+WiFi
+-----
+
+If the red light on the board is lit,
+that means it doesn't know how to connect to the WiFi.
+
+Get your phone or computer to connect to an access point
+called "Wall Art xxxxxxxxx".
+The password is "artsy fartsy", unless you changed it in the source code.
+Once connected,
+you should get a browser window that lets you connect.
+If not, try going to http://neverssl.com/.
+
+You can clear the wifi information with a reset.
+
 
 Network Server
 --------------
@@ -63,6 +88,17 @@ I suggest you set it to standard time and pretend it's in sync with the sun.
 * Each pixel in the middle row is 5 minutes (300 seconds)
 * Each pixel in the bottom row is 25 seconds
 * There are four pixels around the bottom that move every 5 seconds
+
+
+Update
+------
+
+You can upload a new version of the firmware.
+Reset the device, 
+and select the "Update" button instead of configuring WiFi.
+Then you can upload the new .bin firmware file.
+
+You will have to reconfigure networking after this.
 
 
 Philosophy
