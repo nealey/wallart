@@ -100,6 +100,11 @@ Then you can upload the new .bin firmware file.
 
 You will have to reconfigure networking after this.
 
+### Uploading from CLI
+
+    python3 esptool.py --chip esp32 --port "/dev/ttyUSB0" --baud 921600  --before default_reset --after hard_reset write_flash  -z --flash_mode dio --flash_freq 80m --flash_size 4MB 0x1000 wallart.ino.bootloader.bin 0x8000 wallart.ino.partitions.bin 0xe000 boot_app0.bin 0x10000 wallart.ino.bin 
+
+
 
 Philosophy
 ----------
