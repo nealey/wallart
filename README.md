@@ -24,8 +24,14 @@ That's cool.
 Setup
 -----
 
-If the red light on the board is lit,
-that means it doesn't know how to connect to the WiFi.
+When you first plug it in,
+you will see a yellow pattern with blue or red bars around it.
+The pattern is your mac address.
+If the bars are red and a pixel is flashing,
+that means you need to set up WiFi.
+
+You can also look at the back for a red LED.
+If it's lit, you need to set up WiFi.
 
 Get your phone or computer to connect to an access point
 called "WallArt".

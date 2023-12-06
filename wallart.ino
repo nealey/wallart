@@ -31,19 +31,10 @@
 #define ART_PATH "/wallart/wallart.bin"
 
 #define HTTPS_TIMEOUT (2 * SECOND)
+#define IMAGE_PULL_MIN_INTERVAL (5 * MINUTE)
 
 
 CRGB grid[GRIDLEN];
-
-void setup() {
-  pinMode(RESET_PIN, INPUT_PULLUP);
- 	pinMode(LED_BUILTIN, OUTPUT);
-  Serial.begin(19200);
-  FastLED.addLeds<WS2812, NEOPIXEL_PIN, GRB>(grid, GRIDLEN);
-  // Maybe it's the plexiglass, but for my build, I need to dial back the red
-  FastLED.setCorrection(0xd0ffff);
-  network_setup(WFM_PASSWORD);
-}
 
 void fade(int cycles = 2) {
   int reps = (cycles*GRIDLEN) + random(GRIDLEN);
@@ -173,6 +164,26 @@ void cm5(uint8_t width=0, int cycles=200) {
   }
 }
 
+void displayMacAddress(int cycles=40) {
+  uint64_t addr = ESP.getEfuseMac();
+
+  for (; cycles > 0; cycles -= 1) {
+    bool conn = connected();
+
+    fill_solid(grid, GRIDLEN, CHSV(conn?HUE_AQUA:HUE_RED, 128, 64));
+    for (int i = 0; i < 48; i++) {
+      int pos = i + 8;
+      grid[pos] = CHSV(HUE_YELLOW, 255, ((addr>>(47-i)) & 1)?255:64);
+    }
+    grid[0] = CRGB::Black;
+    if (!conn && (cycles % 2)) {
+      grid[1] = CRGB::Black;
+    }
+    FastLED.show();
+    pause(250*MILLISECOND);
+  }
+}
+
 // Art from the network
 int NetArtFrames = 0;
 CRGB NetArt[8][GRIDLEN];
@@ -203,17 +214,25 @@ uint8_t netgetStatus(uint8_t hue) {
 
 void netget(int count=60) {
 	uint8_t hue = netgetStatus(HUE_BLUE);
+  static unsigned long nextPull = 0; // when to pull next
 
 #if defined(ART_HOSTNAME) && defined(ART_PORT) && defined(ART_PATH)
-	if (connected()) {
+  if (millis() < nextPull) {
+    // Let's not bombard the server
+    hue = HUE_ORANGE;
+  } else if (connected()) {
 		WiFiClientSecure scli;
+
+    nextPull = millis() + IMAGE_PULL_MIN_INTERVAL;
 
 		hue = netgetStatus(HUE_AQUA);
 		scli.setInsecure();
 
 		HttpClient https(scli, ART_HOSTNAME, ART_PORT);
 		do {
-			if (https.get(ART_PATH) != 0) break;
+      String path = String(ART_PATH) + "?mac=" + String(ESP.getEfuseMac(), HEX);
+      Serial.println(path);
+			if (https.get(path) != 0) break;
 			hue = netgetStatus(HUE_GREEN);
 
 			if (https.skipResponseHeaders() != HTTP_SUCCESS) break;
@@ -299,6 +318,20 @@ void displayTime(unsigned long duration = 20 * SECOND) {
 
     pause(250 * MILLISECOND);
   }
+}
+
+void setup() {
+  pinMode(RESET_PIN, INPUT_PULLUP);
+  pinMode(LED_BUILTIN, OUTPUT);
+  Serial.begin(19200);
+  FastLED.addLeds<WS2812, NEOPIXEL_PIN, GRB>(grid, GRIDLEN);
+  // Maybe it's the plexiglass, but for my build, I need to dial back the red
+  FastLED.setCorrection(0xd0ffff);
+  network_setup(WFM_PASSWORD);
+
+  // Show our mac address, for debugging?
+  displayMacAddress();
+  sparkle();
 }
 
 void loop() {
