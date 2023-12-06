@@ -24,14 +24,21 @@ That's cool.
 Setup
 -----
 
-When you turn it on,
-it will come up as a new access point,
-called "WallArt".
-Connect to that to configure.
+If the red light on the board is lit,
+that means it doesn't know how to connect to the WiFi.
 
-Please configure the clock before the WiFi:
-this will set up your time zone,
+Get your phone or computer to connect to an access point
+called "WallArt".
+The password is "artsy fartsy", unless you changed it in the source code.
+Once connected,
+you should get a browser window that lets you connect.
+If not, try going to http://neverssl.com/.
+
+Please configure the clock before the WiFi.
+This will set up your time zone,
 so it doesn't blind you in the middle of the night.
+
+You can clear the wifi information with a reset.
 
 
 Reset
@@ -41,22 +48,6 @@ Plug the device in,
 and connect GND to pin A0 (right next to GND).
 The red LED on the Feather board should come on immediately,
 indicating it needs the network set up again.
-
-
-WiFi
------
-
-If the red light on the board is lit,
-that means it doesn't know how to connect to the WiFi.
-
-Get your phone or computer to connect to an access point
-called "Wall Art xxxxxxxxx".
-The password is "artsy fartsy", unless you changed it in the source code.
-Once connected,
-you should get a browser window that lets you connect.
-If not, try going to http://neverssl.com/.
-
-You can clear the wifi information with a reset.
 
 
 Network Server
@@ -93,9 +84,6 @@ Clock
 At night, 
 and sometimes during the day,
 it displays something like a clock.
-You will need to tell it your time zone.
-It doesn't do daylight saving time, sorry.
-I suggest you set it to standard time and pretend it's in sync with the sun.
 
 * Each pixel in the top row is 1 hour (3600 seconds)
 * Each pixel in the middle row is 5 minutes (300 seconds)
