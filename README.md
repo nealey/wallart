@@ -20,14 +20,27 @@ Most people, after watching it for a bit,
 form different ideas about what it's displaying.
 That's cool.
 
+
+Setup
+-----
+
+When you turn it on,
+it will come up as a new access point,
+called "WallArt".
+Connect to that to configure.
+
+Please configure the clock before the WiFi:
+this will set up your time zone,
+so it doesn't blind you in the middle of the night.
+
+
 Reset
 ------
 
 Plug the device in,
-connect GND to pin A0,
-and briefly press the reboot button.
-It will flash orange and blue a few times
-to let you know it has reset.
+and connect GND to pin A0 (right next to GND).
+The red LED on the Feather board should come on immediately,
+indicating it needs the network set up again.
 
 
 WiFi
@@ -98,7 +111,7 @@ Reset the device,
 and select the "Update" button instead of configuring WiFi.
 Then you can upload the new .bin firmware file.
 
-You will have to reconfigure networking after this.
+You may have to reconfigure networking after this.
 
 
 Philosophy

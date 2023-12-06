@@ -1,18 +1,16 @@
-  #include <FastLED.h>
+#include <FastLED.h>
 #include <ArduinoHttpClient.h>
 #include <WiFiClientSecure.h>
 #include <WiFiUdp.h>
-#include <NTPClient.h>
 #include <TimeLib.h>
 #include "durations.h"
-#include "timezones.h"
 #include "picker.h"
 #include "network.h"
 
 #define NEOPIXEL_PIN 32
 #define GRIDLEN 64
 #define WFM_PASSWORD "artsy fartsy"
-#define TIMEZONE TZ_US_Mountain
+#define TIMEZONE TZ_US_Eastern
 
 /* 
  * The hours when the day begins and ends.
@@ -34,45 +32,17 @@
 
 #define HTTPS_TIMEOUT (2 * SECOND)
 
-#define RESET_PIN 26
 
 CRGB grid[GRIDLEN];
-
-WiFiUDP ntpUDP;
-NTPClient timeClient(ntpUDP);
-
-void do_reset() {
-  for (int i = 0; i < 8; i++) {
-    for (int j = 0; j < 8; j += 1) {
-      grid[j] = ((i+j)%2) ? (CRGB::Orange) : (CRGB::Blue);
-    }
-    FastLED.show();
-    digitalWrite(LED_BUILTIN, i%2);
-    delay(300 * MILLISECOND);
-  }
-  network_reset();
-}
 
 void setup() {
   pinMode(RESET_PIN, INPUT_PULLUP);
  	pinMode(LED_BUILTIN, OUTPUT);
+  Serial.begin(19200);
   FastLED.addLeds<WS2812, NEOPIXEL_PIN, GRB>(grid, GRIDLEN);
   // Maybe it's the plexiglass, but for my build, I need to dial back the red
   FastLED.setCorrection(0xd0ffff);
-  if (!digitalRead(RESET_PIN)) {
-    do_reset();
-  }
   network_setup(WFM_PASSWORD);
-}
-
-bool updateTime() {
-  if (timeClient.update()) {
-    time_t now = timeClient.getEpochTime();
-    time_t local = TIMEZONE.toLocal(now);
-    setTime(local);
-    return true;
-  }
-  return false;
 }
 
 void fade(int cycles = 2) {
@@ -291,7 +261,6 @@ void displayTime(unsigned long duration = 20 * SECOND) {
   FastLED.clear();
 
   while (millis() < end) {
-    updateTime();
     int hh = hour();
     int mmss = now() % 3600;
     uint8_t hue = HUE_YELLOW;
@@ -337,14 +306,9 @@ void loop() {
   uint8_t getprob = 4;
   bool conn = connected();
   bool day = true;
+  timeStatus_t ts = timeStatus();
 
-  switch (timeStatus()) {
-    case timeNotSet:
-    case timeNeedsSync:
-      updateTime();
-      break;
-  }
-  if (timeStatus() == timeSet) {
+  if (ts == timeSet) {
     int hh = hour();
     day = ((hh >= DAY_BEGIN) && (hh < DAY_END));
   }
@@ -355,7 +319,7 @@ void loop() {
     getprob = 16;
   }
 
-  if (!day || p.Pick(4)) {
+  if ((ts == timeSet) && (!day || p.Pick(4))) {
     // At night, only ever show the clock
     displayTime(2 * MINUTE);
   } else if (p.Pick(getprob)) {
