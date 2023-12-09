@@ -10,7 +10,6 @@
 #define NEOPIXEL_PIN 32
 #define GRIDLEN 64
 #define WFM_PASSWORD "artsy fartsy"
-#define TIMEZONE TZ_US_Eastern
 
 /* 
  * The hours when the day begins and ends.
@@ -274,18 +273,22 @@ void spinner(int count=32) {
 	}
 }
 
-void displayTime(unsigned long duration = 20 * SECOND) {
-  if (timeStatus() != timeSet) return;
+void displayTime(unsigned long duration = 20*SECOND) {
+  if (!clock_is_set()) return;
   unsigned long end = millis() + duration;
+
   FastLED.clear();
 
   while (millis() < end) {
-    int hh = hour();
-    int mmss = now() % 3600;
+    struct tm info;
+    getLocalTime(&info);
+
+    int hh = info.tm_hour;
+    int mmss = (info.tm_min * 60) + info.tm_sec;
     uint8_t hue = HUE_YELLOW;
 
     // Top: Hours
-    if (isPM()) {
+    if (hh >= 12) {
       hue = HUE_ORANGE;
       hh -= 12;
     }
@@ -298,10 +301,10 @@ void displayTime(unsigned long duration = 20 * SECOND) {
 
     // Outer: 5s
     uint8_t s = (mmss/5) % 5;
-    grid[64 -  7 - 1] = CHSV(HUE_PURPLE, 128, (s==1)?96:0);
-    grid[64 - 15 - 1] = CHSV(HUE_PURPLE, 128, (s==2)?96:0);
-    grid[64 -  8 - 1] = CHSV(HUE_PURPLE, 128, (s==3)?96:0);
-    grid[64 -  0 - 1] = CHSV(HUE_PURPLE, 128, (s==4)?96:0);
+    grid[64 -  7 - 1] = CHSV(HUE_GREEN, 128, (s==1)?96:0);
+    grid[64 - 15 - 1] = CHSV(HUE_GREEN, 128, (s==2)?96:0);
+    grid[64 -  8 - 1] = CHSV(HUE_GREEN, 128, (s==3)?96:0);
+    grid[64 -  0 - 1] = CHSV(HUE_GREEN, 128, (s==4)?96:0);
 
     for (int i = 0; i < 12; i++) {
       // Omit first and last position on a row
@@ -339,11 +342,11 @@ void loop() {
   uint8_t getprob = 4;
   bool conn = connected();
   bool day = true;
-  timeStatus_t ts = timeStatus();
 
-  if (ts == timeSet) {
-    int hh = hour();
-    day = ((hh >= DAY_BEGIN) && (hh < DAY_END));
+  if (clock_is_set()) {
+    struct tm info;
+    getLocalTime(&info);
+    day = ((info.tm_hour >= DAY_BEGIN) && (info.tm_hour < DAY_END));
   }
   FastLED.setBrightness(day?DAY_BRIGHTNESS:NIGHT_BRIGHTNESS);
 
@@ -352,8 +355,9 @@ void loop() {
     getprob = 16;
   }
 
-  if ((ts == timeSet) && (!day || p.Pick(4))) {
-    // At night, only ever show the clock
+  if (!day && clock_is_set()) {
+    displayTime();
+  } else if (p.Pick(4) && clock_is_set()) {
     displayTime(2 * MINUTE);
   } else if (p.Pick(getprob)) {
     netget();

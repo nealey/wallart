@@ -2,6 +2,7 @@
 #include <WiFiManager.h>
 #include <WiFiManagerTz.h>
 #include <esp_wifi.h>
+#include <esp_sntp.h>
 #include <HTTPClient.h>	
 #include <WiFiClientSecure.h>
 #include "network.h"
@@ -13,11 +14,17 @@ void network_reset() {
   wfm.resetSettings();
 }
 
-void on_time_available(struct timeval *t)
-{
+
+bool time_was_accurate_once = false;
+bool clock_is_set() {
+  return time_was_accurate_once;
+}
+
+void on_time_available(struct timeval *t) {
   struct tm timeInfo;
   getLocalTime(&timeInfo, 1000);
   Serial.println(&timeInfo, "%A, %B %d %Y %H:%M:%S %Z %z ");
+  time_was_accurate_once = true;
 }
 
 void network_setup(char *password) {

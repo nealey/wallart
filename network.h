@@ -8,3 +8,4 @@ void network_setup(char *password);
 bool connected();
 void pause(uint32_t dwMs);
 void netget(int count);
+bool clock_is_set();
