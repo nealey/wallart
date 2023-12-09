@@ -33,7 +33,7 @@ void network_setup(char *password) {
   WiFiManagerNS::NTP::onTimeAvailable(&on_time_available);
   WiFiManagerNS::init(&wfm);
 
-  std::vector<const char *> menu = {"wifi", "info", "custom", "param", "sep", "restart", "exit"};
+  std::vector<const char *> menu = {"wifi", "info", "custom", "param", "sep", "update", "restart", "exit"};
   wfm.setMenu(menu);
 	wfm.setConfigPortalBlocking(false);
 	wfm.setHostname(hostname);
