@@ -21,6 +21,41 @@ form different ideas about what it's displaying.
 That's cool.
 
 
+Setup
+-----
+
+When you first plug it in,
+you will see a yellow pattern with blue or red bars around it.
+The pattern is your mac address.
+If the bars are red and a pixel is flashing,
+that means you need to set up WiFi.
+
+You can also look at the back for a red LED.
+If it's lit, you need to set up WiFi.
+
+Get your phone or computer to connect to an access point
+called "WallArt".
+The password is "artsy fartsy", unless you changed it in the source code.
+Once connected,
+you should get a browser window that lets you connect.
+If not, try going to http://neverssl.com/.
+
+Please configure the clock before the WiFi.
+This will set up your time zone,
+so it doesn't blind you in the middle of the night.
+
+You can clear the wifi information with a reset.
+
+
+Reset
+------
+
+Plug the device in,
+and connect GND to pin A0 (right next to GND).
+The red LED on the Feather board should come on immediately,
+indicating it needs the network set up again.
+
+
 Network Server
 --------------
 
@@ -55,14 +90,18 @@ Clock
 At night, 
 and sometimes during the day,
 it displays something like a clock.
-You will need to tell it your time zone.
-It doesn't do daylight saving time, sorry.
-I suggest you set it to standard time and pretend it's in sync with the sun.
 
 * Each pixel in the top row is 1 hour (3600 seconds)
 * Each pixel in the middle row is 5 minutes (300 seconds)
 * Each pixel in the bottom row is 25 seconds
 * There are four pixels around the bottom that move every 5 seconds
+
+
+Updating Firmware
+-----------------
+
+    python3 esptool.py --chip esp32 --port "/dev/ttyUSB0" --baud 921600  --before default_reset --after hard_reset write_flash  -z --flash_mode dio --flash_freq 80m --flash_size 4MB 0x1000 wallart.ino.bootloader.bin 0x8000 wallart.ino.partitions.bin 0xe000 boot_app0.bin 0x10000 wallart.ino.bin 
+
 
 
 Philosophy

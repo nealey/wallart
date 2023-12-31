@@ -2,17 +2,14 @@
 #include <ArduinoHttpClient.h>
 #include <WiFiClientSecure.h>
 #include <WiFiUdp.h>
-#include <NTPClient.h>
-#include <Time.h>
+#include <TimeLib.h>
 #include "durations.h"
-#include "timezones.h"
 #include "picker.h"
 #include "network.h"
 
 #define NEOPIXEL_PIN 32
 #define GRIDLEN 64
 #define WFM_PASSWORD "artsy fartsy"
-#define TIMEZONE TZ_US_Mountain
 
 /* 
  * The hours when the day begins and ends.
@@ -33,28 +30,10 @@
 #define ART_PATH "/wallart/wallart.bin"
 
 #define HTTPS_TIMEOUT (2 * SECOND)
+#define IMAGE_PULL_MIN_INTERVAL (5 * MINUTE)
+
 
 CRGB grid[GRIDLEN];
-
-WiFiUDP ntpUDP;
-NTPClient timeClient(ntpUDP);
-
-void setup() {
-  FastLED.addLeds<WS2812, NEOPIXEL_PIN, GRB>(grid, GRIDLEN);
-  // Maybe it's the plexiglass but for my build I really need to dial back the red
-  FastLED.setCorrection(0xc0ffff);
-  network_setup(WFM_PASSWORD);
-}
-
-bool updateTime() {
-  if (timeClient.update()) {
-    time_t now = timeClient.getEpochTime();
-    time_t local = TIMEZONE.toLocal(now);
-    setTime(local);
-    return true;
-  }
-  return false;
-}
 
 void fade(int cycles = 2) {
   int reps = (cycles*GRIDLEN) + random(GRIDLEN);
@@ -184,6 +163,26 @@ void cm5(uint8_t width=0, int cycles=200) {
   }
 }
 
+void displayMacAddress(int cycles=40) {
+  uint64_t addr = ESP.getEfuseMac();
+
+  for (; cycles > 0; cycles -= 1) {
+    bool conn = connected();
+
+    fill_solid(grid, GRIDLEN, CHSV(conn?HUE_AQUA:HUE_RED, 128, 64));
+    for (int i = 0; i < 48; i++) {
+      int pos = i + 8;
+      grid[pos] = CHSV(HUE_YELLOW, 255, ((addr>>(47-i)) & 1)?255:64);
+    }
+    grid[0] = CRGB::Black;
+    if (!conn && (cycles % 2)) {
+      grid[1] = CRGB::Black;
+    }
+    FastLED.show();
+    pause(250*MILLISECOND);
+  }
+}
+
 // Art from the network
 int NetArtFrames = 0;
 CRGB NetArt[8][GRIDLEN];
@@ -214,25 +213,45 @@ uint8_t netgetStatus(uint8_t hue) {
 
 void netget(int count=60) {
 	uint8_t hue = netgetStatus(HUE_BLUE);
+  static unsigned long nextPull = 0; // when to pull next
 
 #if defined(ART_HOSTNAME) && defined(ART_PORT) && defined(ART_PATH)
-	if (connected()) {
+  if (millis() < nextPull) {
+    // Let's not bombard the server
+    hue = HUE_ORANGE;
+  } else if (connected()) {
 		WiFiClientSecure scli;
+
+    nextPull = millis() + IMAGE_PULL_MIN_INTERVAL;
 
 		hue = netgetStatus(HUE_AQUA);
 		scli.setInsecure();
 
 		HttpClient https(scli, ART_HOSTNAME, ART_PORT);
 		do {
-			if (https.get(ART_PATH) != 0) break;
+      String path = String(ART_PATH) + "?mac=" + String(ESP.getEfuseMac(), HEX);
+      Serial.println(path);
+			if (https.get(path) != 0) break;
 			hue = netgetStatus(HUE_GREEN);
 
 			if (https.skipResponseHeaders() != HTTP_SUCCESS) break;
 			hue = netgetStatus(HUE_YELLOW);
 
-			int artlen = https.read((uint8_t *)NetArt, sizeof(NetArt));
-			hue = netgetStatus(HUE_ORANGE);
-			NetArtFrames = (artlen / 3) / GRIDLEN;
+      size_t readBytes = 0;
+      for (int i = 0; i < 12; i++) {
+        size_t artBytesLeft = sizeof(NetArt) - readBytes;
+
+        if (https.endOfBodyReached() || (artBytesLeft == 0)) {
+          hue = netgetStatus(HUE_ORANGE);
+    			NetArtFrames = (readBytes / 3) / GRIDLEN;
+          break;
+        }
+        int l = https.read((uint8_t *)NetArt + readBytes, artBytesLeft);
+        if (-1 == l) {
+          break;
+        }
+        readBytes += l;
+      }
 		} while(false);
 		https.stop();
 	}
@@ -254,19 +273,22 @@ void spinner(int count=32) {
 	}
 }
 
-void displayTime(unsigned long duration = 20 * SECOND) {
-  if (timeStatus() != timeSet) return;
+void displayTime(unsigned long duration = 20*SECOND) {
+  if (!clock_is_set()) return;
   unsigned long end = millis() + duration;
+
   FastLED.clear();
 
   while (millis() < end) {
-    updateTime();
-    int hh = hour();
-    int mmss = now() % 3600;
+    struct tm info;
+    getLocalTime(&info);
+
+    int hh = info.tm_hour;
+    int mmss = (info.tm_min * 60) + info.tm_sec;
     uint8_t hue = HUE_YELLOW;
 
     // Top: Hours
-    if (isPM()) {
+    if (hh >= 12) {
       hue = HUE_ORANGE;
       hh -= 12;
     }
@@ -279,10 +301,10 @@ void displayTime(unsigned long duration = 20 * SECOND) {
 
     // Outer: 5s
     uint8_t s = (mmss/5) % 5;
-    grid[64 -  7 - 1] = CHSV(HUE_PURPLE, 128, (s==1)?96:0);
-    grid[64 - 15 - 1] = CHSV(HUE_PURPLE, 128, (s==2)?96:0);
-    grid[64 -  8 - 1] = CHSV(HUE_PURPLE, 128, (s==3)?96:0);
-    grid[64 -  0 - 1] = CHSV(HUE_PURPLE, 128, (s==4)?96:0);
+    grid[64 -  7 - 1] = CHSV(HUE_GREEN, 128, (s==1)?96:0);
+    grid[64 - 15 - 1] = CHSV(HUE_GREEN, 128, (s==2)?96:0);
+    grid[64 -  8 - 1] = CHSV(HUE_GREEN, 128, (s==3)?96:0);
+    grid[64 -  0 - 1] = CHSV(HUE_GREEN, 128, (s==4)?96:0);
 
     for (int i = 0; i < 12; i++) {
       // Omit first and last position on a row
@@ -301,16 +323,30 @@ void displayTime(unsigned long duration = 20 * SECOND) {
   }
 }
 
+void setup() {
+  pinMode(RESET_PIN, INPUT_PULLUP);
+  pinMode(LED_BUILTIN, OUTPUT);
+  Serial.begin(19200);
+  FastLED.addLeds<WS2812, NEOPIXEL_PIN, GRB>(grid, GRIDLEN);
+  // Maybe it's the plexiglass, but for my build, I need to dial back the red
+  FastLED.setCorrection(0xd0ffff);
+  network_setup(WFM_PASSWORD);
+
+  // Show our mac address, for debugging?
+  displayMacAddress();
+  sparkle();
+}
+
 void loop() {
 	Picker p;
   uint8_t getprob = 4;
   bool conn = connected();
   bool day = true;
 
-  updateTime();
-  if (timeStatus() == timeSet) {
-    int hh = hour();
-    day = ((hh >= DAY_BEGIN) && (hh < DAY_END));
+  if (clock_is_set()) {
+    struct tm info;
+    getLocalTime(&info);
+    day = ((info.tm_hour >= DAY_BEGIN) && (info.tm_hour < DAY_END));
   }
   FastLED.setBrightness(day?DAY_BRIGHTNESS:NIGHT_BRIGHTNESS);
 
@@ -319,8 +355,9 @@ void loop() {
     getprob = 16;
   }
 
-  if (!day || p.Pick(4)) {
-    // At night, only ever show the clock
+  if (!day && clock_is_set()) {
+    displayTime();
+  } else if (p.Pick(4) && clock_is_set()) {
     displayTime(2 * MINUTE);
   } else if (p.Pick(getprob)) {
     netget();
