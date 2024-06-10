@@ -202,12 +202,9 @@ void displayMacAddress(int cycles=40) {
     }
 
     // Middle: MAC address
-    for (int octet = 0; octet < 6; octet++) {
-      for (int i = 0; i < 8; i++) {
-        int pos = 8 + (octet*8) + (7-i);
-        bool bit = (addr>>(octet*8 + i)) & 1;
-        grid[pos] = bit ? CRGB::Yellow: CRGB::Black;
-      }
+    for (int i = 0; i < 48; i++) {
+      int pos = i + 8;
+      grid[pos] = CHSV(HUE_YELLOW, 255, ((addr>>(47-i)) & 1)?255:64);
     }
 
     // Bottom: connected status

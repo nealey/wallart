@@ -1,4 +1,9 @@
-## v2 - 2024-06-09
+## 2.1 - 2024-06-09
+### Fixed
+* MAC address on boot now displayed correctly.
+
+
+## 2.0 - 2024-06-09
 ### Added
 * New Clock mode with arabic numerals
 * Firmware version now displayed at boot time
