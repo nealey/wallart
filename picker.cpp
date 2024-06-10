@@ -3,14 +3,14 @@
 #include "picker.h"
 
 Picker::Picker() {
-    val = random(1, 256);
+    this->val = random(1, 256);
 }
 
 bool Picker::Pick(uint8_t likelihood) {
+    bool picked = false;
     if ((val > 0) && (val <= likelihood)) {
-        val = 0;
-        return true;
+        picked = true;
     }
     val -= likelihood;
-    return false;
+    return picked;
 }

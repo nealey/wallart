@@ -7,5 +7,5 @@ public:
     Picker();
     bool Pick(uint8_t);
 private:
-    uint8_t val;
+    int val;
 };

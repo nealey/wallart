@@ -6,34 +6,51 @@
 #include "durations.h"
 #include "picker.h"
 #include "network.h"
+#include "settings.h"
 
-#define NEOPIXEL_PIN 32
+#define VERSION 2
 #define GRIDLEN 64
-#define WFM_PASSWORD "artsy fartsy"
-
-/* 
- * The hours when the day begins and ends.
- * At night, all you get is a dim clock.
- */
-#define DAY_BEGIN 6
-#define DAY_END 20
-#define DAY_BRIGHTNESS 0x80
-#define NIGHT_BRIGHTNESS 0x10
-
-/*
- * Define these to fetch from a wallart-server
- *
- * https://git.woozle.org/neale/wallart-server
- */
-#define ART_HOSTNAME "www.woozle.org"
-#define ART_PORT 443
-#define ART_PATH "/wallart/wallart.bin"
 
 #define HTTPS_TIMEOUT (2 * SECOND)
 #define IMAGE_PULL_MIN_INTERVAL (5 * MINUTE)
 
-
 CRGB grid[GRIDLEN];
+CRGB actual[GRIDLEN];
+
+// Rotation, in degrees: [0, 90, 180, 270]
+int rotation = 0;
+
+void show() {
+  for (int y = 0; y < 8; y++) {
+    for (int x = 0; x < 8; x++) {
+      int pos;
+      switch (rotation) {
+        case 90:
+          pos = (x)*8 + (7-y);
+          break;
+        case 180:
+          pos = (7-y)*8 + (7-x);
+          break;
+        case 270:
+          pos = (7-x)*8 + y;
+          break;
+        default:
+          pos = (y)*8 + x;
+          break;
+      }
+      actual[pos] = grid[y*8 + x];
+    }
+  }
+  FastLED.show();
+}
+
+void clear() {
+  fill_solid(grid, GRIDLEN, CRGB::Black);
+}
+
+// I am so ashamed of this.
+// But C++ is a real pain for me at this point.
+#include "clock.h"
 
 void fade(int cycles = 2) {
   int reps = (cycles*GRIDLEN) + random(GRIDLEN);
@@ -43,7 +60,7 @@ void fade(int cycles = 2) {
       uint8_t p = cm5xlat(8, (i+pos) % GRIDLEN);
       grid[p] = CHSV(hue, 255, pos * 32);
     }
-    FastLED.show();
+    show();
     pause(80);
   }
 }
@@ -51,7 +68,7 @@ void fade(int cycles = 2) {
 void singleCursor(int count = 80) {
   for (int i = 0; i < count; i++) {
     grid[20] = CHSV(0, 210, 127 * (i%2));
-    FastLED.show();
+    show();
     pause(120);
   }
 }
@@ -66,7 +83,7 @@ void sparkle(int cycles=50) {
 			pos[j] = random(GRIDLEN);
 			grid[pos[j]] = CRGB::Gray;
 		}
-		FastLED.show();
+		show();
 		pause(40);
 	}
 }
@@ -101,7 +118,7 @@ void glitchPulse(int cycles=1000) {
       grid[pos[i]] = c;
       steps[i]--;
     }
-    FastLED.show();
+    show();
     pause(100);
   }
 }
@@ -129,7 +146,7 @@ void conwayish(int cycles=5000) {
         left[i]--;
       }
     }
-    FastLED.show();
+    show();
     pause(20);
   }
 }
@@ -158,27 +175,45 @@ void cm5(uint8_t width=0, int cycles=200) {
         grid[xpos] = CHSV(0, 255, val);
       }
     }
-    FastLED.show();
+    show();
     pause(500);
   }
 }
 
+// Display MAC address at startup.
 void displayMacAddress(int cycles=40) {
   uint64_t addr = ESP.getEfuseMac();
 
-  for (; cycles > 0; cycles -= 1) {
-    bool conn = connected();
+  Serial.println("mac=" + String(ESP.getEfuseMac(), HEX));
 
-    fill_solid(grid, GRIDLEN, CHSV(conn?HUE_AQUA:HUE_RED, 128, 64));
-    for (int i = 0; i < 48; i++) {
-      int pos = i + 8;
-      grid[pos] = CHSV(HUE_YELLOW, 255, ((addr>>(47-i)) & 1)?255:64);
+  // Set some custom things per device.
+  // It would have been nice if doing this in the Access Point UI were easier than switching the MAC address.
+  switch (addr) {
+    case 0x18fc1d519140:
+      rotation = 270;
+      break;
+  }
+
+  for (; cycles > 0; cycles -= 1) {
+    // Top: version
+    for (int i = 0; i < 8; i++) {
+      bool bit = (VERSION>>i) & 1;
+      grid[7-i] = bit ? CRGB::Black : CRGB::Aqua;
     }
-    grid[0] = CRGB::Black;
-    if (!conn && (cycles % 2)) {
-      grid[1] = CRGB::Black;
+
+    // Middle: MAC address
+    for (int octet = 0; octet < 6; octet++) {
+      for (int i = 0; i < 8; i++) {
+        int pos = 8 + (octet*8) + (7-i);
+        bool bit = (addr>>(octet*8 + i)) & 1;
+        grid[pos] = bit ? CRGB::Yellow: CRGB::Black;
+      }
     }
-    FastLED.show();
+
+    // Bottom: connected status
+    fill_solid(grid+56, 8, connected() ? CRGB::Aqua : CRGB::Red);
+
+    show();
     pause(250*MILLISECOND);
   }
 }
@@ -194,7 +229,7 @@ void netart(int count=40) {
 
 	for (int i = 0; i < count; i++) {
 		memcpy(grid, NetArt[i%NetArtFrames], GRIDLEN*3);
-		FastLED.show();
+		show();
 		pause(500);
 	}
 }
@@ -206,7 +241,7 @@ uint8_t netgetStatus(uint8_t hue) {
 		positions[j] = random(GRIDLEN);
 		grid[positions[j]] = CHSV(hue, 255, 180);
 	}
-	FastLED.show();
+	show();
 	pause(500);
 	return hue;
 }
@@ -267,17 +302,17 @@ void spinner(int count=32) {
 	for (int i = 0; i < count; i++) {
 		int pos = spinner_pos[i % 4];
 		grid[pos] = CRGB::OliveDrab;
-		FastLED.show();
+		show();
 		pause(125);
 		grid[pos] = CRGB::Black;
 	}
 }
 
-void displayTime(unsigned long duration = 20*SECOND) {
+void displayTimeDozenal(unsigned long duration = 20*SECOND) {
   if (!clock_is_set()) return;
   unsigned long end = millis() + duration;
 
-  FastLED.clear();
+  clear();
 
   while (millis() < end) {
     struct tm info;
@@ -317,7 +352,7 @@ void displayTime(unsigned long duration = 20*SECOND) {
       grid[pos + 24] = CHSV(HUE_RED, 255, (i<mm)?128:48);
       grid[pos + 48] = CHSV(HUE_PINK, 128, (i<ss)?96:48);
     }
-    FastLED.show();
+    show();
 
     pause(250 * MILLISECOND);
   }
@@ -327,20 +362,19 @@ void setup() {
   pinMode(RESET_PIN, INPUT_PULLUP);
   pinMode(LED_BUILTIN, OUTPUT);
   Serial.begin(19200);
-  FastLED.addLeds<WS2812, NEOPIXEL_PIN, GRB>(grid, GRIDLEN);
+  FastLED.addLeds<WS2812, NEOPIXEL_PIN, GRB>(actual, GRIDLEN);
   // Maybe it's the plexiglass, but for my build, I need to dial back the red
-  FastLED.setCorrection(0xd0ffff);
+  //FastLED.setCorrection(0xd0ffff);
   network_setup(WFM_PASSWORD);
 
   // Show our mac address, for debugging?
+  FastLED.setBrightness(DAY_BRIGHTNESS);
   displayMacAddress();
   sparkle();
 }
 
 void loop() {
 	Picker p;
-  uint8_t getprob = 4;
-  bool conn = connected();
   bool day = true;
 
   if (clock_is_set()) {
@@ -350,16 +384,17 @@ void loop() {
   }
   FastLED.setBrightness(day?DAY_BRIGHTNESS:NIGHT_BRIGHTNESS);
 
-  // If we don't yet have net art, try a little harder to get it.
-  if ((NetArtFrames == 0) || !conn) {
-    getprob = 16;
-  }
-
+  // At night, always display the clock
   if (!day && clock_is_set()) {
-    displayTime();
+    displayTimeDigits(day);
+    return;
+  }
+  
+  if (p.Pick(4) && clock_is_set()) {
+    displayTimeDigits(day, 2 * MINUTE);
   } else if (p.Pick(4) && clock_is_set()) {
-    displayTime(2 * MINUTE);
-  } else if (p.Pick(getprob)) {
+    displayTimeDozenal();
+  } else if (p.Pick(4)) {
     netget();
   } else if (day && p.Pick(4)) {
     // These can be hella bright

@@ -1,8 +1,8 @@
-BOARD = --board adafruit:samd:adafruit_trinket_m0
+BOARD = --board esp32:esp32:featheresp32
 
-verify: main.ino
+verify: wallart.ino
 	arduino --verify $(BOARD) $<
 	
-install: main.ino
+install: wallart.ino
 	arduino --upload $(BOARD) $<
 

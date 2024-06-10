@@ -96,6 +96,16 @@ it displays something like a clock.
 * Each pixel in the bottom row is 25 seconds
 * There are four pixels around the bottom that move every 5 seconds
 
+Build Dependencies
+------------
+
+You'll need the following:
+
+* esp32 boards: Arduino ESP32 Feather
+* FastLED library
+* WifiManagerTZ library (and its dependencies)
+* ArduinoHttpClient library 
+
 
 Updating Firmware
 -----------------
@@ -123,3 +133,13 @@ but if you want to make NeoPixel art,
 think hard about what the end result should look like.
 It's not enough to make a cool light show;
 it has to make people wonder "what is that for?"
+
+
+Apology
+----------
+
+I am no longer a C++ programmer.
+The structure of this code is awful.
+I'm sorry.
+I didn't feel like a 2-day refresher in a language I never use,
+for code nobody else is likely to ever compile.
